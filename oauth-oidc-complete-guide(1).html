@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAuth & OIDC — Complete Deep Dive</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;--surface3:#22222e;
+  --border:#2a2a3a;--accent:#7c6af7;--accent2:#f06d4a;--accent3:#4af0b0;
+  --accent4:#f0c44a;--text:#e8e8f0;--text2:#9090a8;--text3:#5a5a70;
+  --code-bg:#0d0d14;--red:#f04a6a;--green:#4af0b0;--yellow:#f0c44a;--blue:#4a9ef0;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Lora',serif;font-size:17px;line-height:1.75;overflow-x:hidden}
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:280px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;z-index:100;padding:24px 0 40px;transition:transform 0.3s ease}
+#sidebar::-webkit-scrollbar{width:4px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.nav-logo{padding:0 24px 24px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.nav-logo .logo-tag{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}
+.nav-logo h2{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;line-height:1.2}
+.nav-section-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--text3);padding:16px 24px 6px}
+.nav-item{display:block;padding:8px 24px;color:var(--text2);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-left:2px solid transparent;transition:all 0.2s}
+.nav-item:hover,.nav-item.active{color:var(--text);border-left-color:var(--accent);background:rgba(124,106,247,0.06);padding-left:28px}
+.nav-item.active{color:var(--accent)}
+#main{margin-left:280px}
+.hero{padding:80px 80px 60px;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-100px;right:-100px;width:600px;height:600px;background:radial-gradient(circle,rgba(124,106,247,0.12) 0%,transparent 65%);pointer-events:none}
+.hero-eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--accent);text-transform:uppercase;margin-bottom:20px}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(42px,5vw,68px);font-weight:800;line-height:1.05;margin-bottom:24px;letter-spacing:-1px}
+.hero h1 span.grad{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-desc{font-size:19px;color:var(--text2);max-width:620px;line-height:1.6;font-style:italic}
+.hero-stats{display:flex;gap:40px;margin-top:40px}
+.stat{display:flex;flex-direction:column;gap:4px}
+.stat-num{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--accent)}
+.stat-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--text3);text-transform:uppercase}
+.section{padding:70px 80px;border-bottom:1px solid var(--border);display:none}
+.section.active{display:block}
+.section-eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:4px;color:var(--accent2);text-transform:uppercase;margin-bottom:12px}
+.section>h2{font-family:'Syne',sans-serif;font-size:clamp(28px,3vw,42px);font-weight:800;margin-bottom:32px;letter-spacing:-0.5px;line-height:1.15}
+h3{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;margin:40px 0 16px}
+h4{font-family:'Syne',sans-serif;font-weight:700;color:var(--accent3);letter-spacing:0.5px;text-transform:uppercase;font-size:13px;margin:24px 0 10px}
+p{margin-bottom:18px;color:var(--text2)}
+p strong{color:var(--text);font-family:'Syne',sans-serif}
+.code-block{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;margin:24px 0;overflow:hidden}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.code-lang{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase}
+.code-dots{display:flex;gap:6px}
+.code-dot{width:10px;height:10px;border-radius:50%}
+.code-dot:nth-child(1){background:#f04a6a}
+.code-dot:nth-child(2){background:#f0c44a}
+.code-dot:nth-child(3){background:#4af0b0}
+.code-block pre{padding:20px 22px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.7;color:#c0c0d0}
+.kw{color:#c792ea}.str{color:#c3e88d}.num{color:#f78c6c}.cmt{color:#546e7a;font-style:italic}
+.fn{color:#82aaff}.key{color:#f07178}.val{color:#c3e88d}.url{color:#4af0b0}.hdr{color:#f0c44a}.op{color:#89ddff}
+.info-box{border-radius:8px;padding:20px 24px;margin:24px 0;border-left:3px solid;position:relative}
+.info-box.note{background:rgba(74,159,240,0.07);border-color:var(--blue)}
+.info-box.warn{background:rgba(240,196,74,0.07);border-color:var(--yellow)}
+.info-box.danger{background:rgba(240,74,106,0.07);border-color:var(--red)}
+.info-box.success{background:rgba(74,240,176,0.07);border-color:var(--green)}
+.info-box.tip{background:rgba(124,106,247,0.07);border-color:var(--accent)}
+.info-box-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:8px}
+.info-box.note .info-box-label{color:var(--blue)}
+.info-box.warn .info-box-label{color:var(--yellow)}
+.info-box.danger .info-box-label{color:var(--red)}
+.info-box.success .info-box-label{color:var(--green)}
+.info-box.tip .info-box-label{color:var(--accent)}
+.info-box p{margin:0;font-size:15px}
+.flow{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:32px;margin:28px 0;overflow-x:auto}
+.flow-title{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-bottom:24px}
+.flow-vertical{display:flex;flex-direction:column}
+.flow-step{display:flex;align-items:flex-start;gap:20px;padding:14px 0;border-bottom:1px solid var(--border)}
+.flow-step:last-child{border-bottom:none}
+.flow-step-num{width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;font-family:'Syne',sans-serif;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.flow-step-body{flex:1}
+.flow-step-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.flow-step-desc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);line-height:1.5}
+.flow-step-from{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:2px}
+.compare-table{width:100%;border-collapse:collapse;margin:24px 0;font-size:14px}
+.compare-table th{background:var(--surface2);color:var(--text);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:12px 18px;text-align:left;border:1px solid var(--border)}
+.compare-table td{padding:12px 18px;border:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:13px;vertical-align:top;line-height:1.6}
+.compare-table tr:nth-child(even) td{background:rgba(255,255,255,0.015)}
+.compare-table tr:hover td{background:rgba(124,106,247,0.04)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500}
+.tag.green{background:rgba(74,240,176,0.12);color:var(--green)}
+.tag.red{background:rgba(240,74,106,0.12);color:var(--red)}
+.tag.yellow{background:rgba(240,196,74,0.12);color:var(--yellow)}
+.tag.blue{background:rgba(74,159,240,0.12);color:var(--blue)}
+.tag.purple{background:rgba(124,106,247,0.12);color:var(--accent)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:24px 0}
+.card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:22px;transition:border-color 0.2s,transform 0.2s}
+.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.card-icon{font-size:24px;margin-bottom:12px}
+.card h4{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:none;letter-spacing:0}
+.card p{font-size:13px;margin:0}
+.jwt-display{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:20px;margin:20px 0;font-family:'JetBrains Mono',monospace;font-size:13px;word-break:break-all;line-height:1.8}
+.jwt-part1{color:#f06d4a}.jwt-part2{color:#7c6af7}.jwt-part3{color:#4af0b0}
+.jwt-legend{display:flex;gap:24px;margin-top:14px;flex-wrap:wrap}
+.jwt-legend-item{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)}
+.jwt-legend-dot{width:10px;height:10px;border-radius:50%}
+.timeline{position:relative;padding:10px 0 10px 30px;margin:24px 0}
+.timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--accent),var(--accent2),var(--accent3));border-radius:2px}
+.timeline-item{position:relative;margin-bottom:32px}
+.timeline-dot{position:absolute;left:-38px;top:4px;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+.timeline-year{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:2px;margin-bottom:6px}
+.timeline-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px}
+.timeline-body{font-size:14px;color:var(--text2);line-height:1.6}
+.progress-bar{position:fixed;top:0;left:280px;right:0;height:3px;background:var(--border);z-index:200}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width 0.3s}
+.badge-row{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.badge{padding:5px 14px;border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;border:1px solid}
+.badge.purple{border-color:var(--accent);color:var(--accent);background:rgba(124,106,247,0.08)}
+.badge.orange{border-color:var(--accent2);color:var(--accent2);background:rgba(240,109,74,0.08)}
+.badge.green{border-color:var(--accent3);color:var(--accent3);background:rgba(74,240,176,0.08)}
+.badge.yellow{border-color:var(--yellow);color:var(--yellow);background:rgba(240,196,74,0.08)}
+.badge.red{border-color:var(--red);color:var(--red);background:rgba(240,74,106,0.08)}
+hr{border:none;border-top:1px solid var(--border);margin:36px 0}
+code{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--surface3);color:var(--accent3);padding:1px 6px;border-radius:4px;border:1px solid var(--border)}
+.hamburger{display:none;position:fixed;top:16px;left:16px;z-index:200;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;flex-direction:column;gap:5px}
+.hamburger span{display:block;width:20px;height:2px;background:var(--text);border-radius:2px}
+@media(max-width:900px){
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:translateX(0)}
+  #main{margin-left:0}
+  .hamburger{display:flex}
+  .section,.hero{padding:60px 24px}
+  .progress-bar{left:0}
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.section.active>*{animation:fadeUp 0.4s ease forwards;opacity:0}
+.section.active>*:nth-child(1){animation-delay:0.05s}
+.section.active>*:nth-child(2){animation-delay:0.1s}
+.section.active>*:nth-child(3){animation-delay:0.15s}
+.section.active>*:nth-child(4){animation-delay:0.2s}
+.section.active>*:nth-child(5){animation-delay:0.25s}
+.section.active>*:nth-child(n+6){animation-delay:0.3s}
+</style>
+</head>
+<body>
+<div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+<button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+<nav id="sidebar">
+  <div class="nav-logo">
+    <div class="logo-tag">Complete Guide</div>
+    <h2>OAuth · OIDC · JWT<br>Deep Dive</h2>
+  </div>
+  <div class="nav-section-label">Foundations</div>
+  <a class="nav-item active" onclick="show('history')">📜 History & Why OAuth</a>
+  <a class="nav-item" onclick="show('before')">🏚️ Life Before OAuth</a>
+  <a class="nav-item" onclick="show('core')">🔐 OAuth 2.0 Core</a>
+  <a class="nav-item" onclick="show('roles')">👥 Roles & Actors</a>
+  <div class="nav-section-label">Grant Types</div>
+  <a class="nav-item" onclick="show('grants')">📋 All Grant Types</a>
+  <a class="nav-item" onclick="show('authcode')">🔄 Auth Code Flow</a>
+  <a class="nav-item" onclick="show('pkce')">🔒 PKCE Deep Dive</a>
+  <a class="nav-item" onclick="show('clientcreds')">🤖 Client Credentials</a>
+  <a class="nav-item" onclick="show('device')">📺 Device Code Flow</a>
+  <div class="nav-section-label">Tokens</div>
+  <a class="nav-item" onclick="show('tokens')">🎟️ Token Types</a>
+  <a class="nav-item" onclick="show('jwt')">🧩 JWT Deep Dive</a>
+  <a class="nav-item" onclick="show('jwtsec')">🛡️ JWT Security</a>
+  <a class="nav-item" onclick="show('refresh')">♻️ Refresh Tokens</a>
+  <div class="nav-section-label">OIDC</div>
+  <a class="nav-item" onclick="show('oidc')">🪪 OIDC Introduction</a>
+  <a class="nav-item" onclick="show('idtoken')">🆔 ID Token Anatomy</a>
+  <a class="nav-item" onclick="show('oidcflows')">🌊 OIDC Flows</a>
+  <a class="nav-item" onclick="show('userinfo')">👤 UserInfo Endpoint</a>
+  <a class="nav-item" onclick="show('discovery')">🔍 Discovery & JWKS</a>
+  <div class="nav-section-label">Security</div>
+  <a class="nav-item" onclick="show('attacks')">⚔️ Common Attacks</a>
+  <a class="nav-item" onclick="show('bestpractices')">✅ Best Practices</a>
+  <a class="nav-item" onclick="show('storage')">💾 Token Storage</a>
+  <div class="nav-section-label">Advanced</div>
+  <a class="nav-item" onclick="show('scopes')">🎯 Scopes & Claims</a>
+  <a class="nav-item" onclick="show('pkijwt')">🔑 Private Key JWT</a>
+  <a class="nav-item" onclick="show('dpop')">🔗 DPoP & mTLS</a>
+  <a class="nav-item" onclick="show('summary')">📊 Cheat Sheet</a>
+</nav>
+<main id="main">
+<div class="hero">
+  <div class="hero-eyebrow">Complete Reference · 25 Sections</div>
+  <h1>OAuth 2.0, OIDC<br>&amp; <span class="grad">JWT Mastery</span></h1>
+  <p class="hero-desc">From the password anti-pattern era to modern zero-trust identity — every concept, every flow, every attack, explained from first principles.</p>
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-num">8</span><span class="stat-label">Grant Types</span></div>
+    <div class="stat"><span class="stat-num">25</span><span class="stat-label">Topics</span></div>
+    <div class="stat"><span class="stat-num">100+</span><span class="stat-label">Concepts</span></div>
+    <div class="stat"><span class="stat-num">20+</span><span class="stat-label">RFCs Covered</span></div>
+  </div>
+</div>
+
+<!-- HISTORY SECTION -->
+<section class="section active" id="sec-history">
+<div class="section-eyebrow">Section 01 · Foundations</div>
+<h2>History: Why Was OAuth Invented?</h2>
+<p>To understand OAuth, you must understand the problem it solved — the <strong>Password Anti-Pattern</strong>: before OAuth, the only way a third-party app could access your data on another service was if you gave it your username and password.</p>
+<p>Imagine you use a calendar app that wants to import your Gmail contacts. The app says: <em>"Enter your Gmail password."</em> You type it. Now that app holds your Gmail password forever. If the app is compromised, the attacker has your Gmail credentials. You can't revoke access without changing your password, and the app has full account access — not just contacts.</p>
+<div class="info-box danger">
+  <div class="info-box-label">The Core Problem</div>
+  <p>Sharing passwords gives all-or-nothing access, no expiration, no revocation, and zero audit trail. A breach of the third party = your password leaked.</p>
+</div>
+<h3>Timeline: The Road to Modern Identity</h3>
+<div class="timeline">
+  <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-year">2006–2007</div><div class="timeline-title">The Problem Becomes Acute</div><div class="timeline-body">Twitter, Flickr, and early social APIs explode. Developers need to access user data on their behalf. Password sharing is the universal (horrible) solution.</div></div>
+  <div class="timeline-item"><div class="timeline-dot" style="background:var(--accent2)"></div><div class="timeline-year">Sep 2007</div><div class="timeline-title">OAuth 1.0 Discussion Begins</div><div class="timeline-body">Blaine Cook (Twitter), Chris Messina, and others start an open working group. Core concept: give third parties a <em>token</em>, not a password. Tokens can be scoped and revoked.</div></div>
+  <div class="timeline-item"><div class="timeline-dot" style="background:var(--accent3)"></div><div class="timeline-year">Apr 2010</div><div class="timeline-title">RFC 5849 — OAuth 1.0 Published</div><div class="timeline-body">OAuth 1.0a becomes an IETF RFC. Used cryptographic HMAC-SHA1 signatures on every request. Functional but complex and painful for developers to implement correctly.</div></div>
+  <div class="timeline-item"><div class="timeline-dot" style="background:var(--yellow)"></div><div class="timeline-year">Oct 2012</div><div class="timeline-title">RFC 6749/6750 — OAuth 2.0</div><div class="timeline-body">Complete redesign. Dropped signatures in favor of TLS. Introduced grant types to support different architectures. Became the dominant industry standard for API authorization.</div></div>
+  <div class="timeline-item"><div class="timeline-dot" style="background:var(--accent)"></div><div class="timeline-year">Feb 2014</div><div class="timeline-title">OpenID Connect 1.0</div><div class="timeline-body">The OpenID Foundation built an identity layer on top of OAuth 2.0, adding the ID Token (JWT) and standardized user info. Authentication + Authorization finally unified.</div></div>
+  <div class="timeline-item"><div class="timeline-dot" style="background:var(--red)"></div><div class="timeline-year">2017–2019</div><div class="timeline-title">Security Hardening</div><div class="timeline-body">PKCE (RFC 7636) published. Implicit Grant officially deprecated. OAuth 2.0 Security BCP drafted. The ecosystem learns from its mistakes.</div></div>
+  <div class="timeline-item"><div class="timeline-dot" style="background:var(--blue)"></div><div class="timeline-year">2022–Present</div><div class="timeline-title">OAuth 2.1 & Modern Security</div><div class="timeline-body">DPoP standardized (RFC 9449). mTLS client auth (RFC 8705) widely adopted. OAuth 2.1 consolidates best practices. FAPI 2.0 for financial-grade APIs.</div></div>
+</div>
+<h3>What Did OAuth Replace?</h3>
+<div class="card-grid">
+  <div class="card"><div class="card-icon">🔑</div><h4>Password Sharing (Primary Target)</h4><p>Apps asking users for passwords to third-party services. Zero security properties. This was THE problem OAuth directly solved.</p></div>
+  <div class="card"><div class="card-icon">🪟</div><h4>Screen Scraping</h4><p>Bots logging in as the user and parsing HTML to extract data. Brittle, often ToS violations, no API contract.</p></div>
+  <div class="card"><div class="card-icon">🔒</div><h4>OpenID 1.0 / 2.0</h4><p>Earlier federated identity (2005–2007). Handled authentication but not authorization. Used complex URLs as identifiers. OAuth 2.0 + OIDC superseded it entirely.</p></div>
+  <div class="card"><div class="card-icon">🎫</div><h4>SAML (Partially)</h4><p>XML-based enterprise SSO (2002). Still used in enterprise but OIDC has largely replaced it for modern web and mobile apps.</p></div>
+  <div class="card"><div class="card-icon">🍪</div><h4>Proprietary Token Systems</h4><p>Twitter, Google, Facebook all had their own custom delegation systems before OAuth standardized everything.</p></div>
+  <div class="card"><div class="card-icon">🔐</div><h4>HTTP Basic Auth</h4><p>RFC 7617. Still used for simple server-to-server but completely inadequate for delegated third-party access or identity federation.</p></div>
+</div>
+</section>
+
+<!-- BEFORE OAUTH -->
+<section class="section" id="sec-before">
+<div class="section-eyebrow">Section 02 · Context</div>
+<h2>Life Before OAuth: The Dark Ages</h2>
+<p>Understanding the exact pain points makes OAuth's design choices clear. Let's look at the Yelp "find friends" feature — a real, infamous example of the password anti-pattern in action.</p>
+<div class="flow">
+  <div class="flow-title">Pre-OAuth: The Password Anti-Pattern</div>
+  <div class="flow-vertical">
+    <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-body"><div class="flow-step-title">Yelp asks: "Enter your Gmail username &amp; password"</div><div class="flow-step-desc">User types their actual Gmail credentials into the Yelp website</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-body"><div class="flow-step-title">Yelp stores the plaintext password</div><div class="flow-step-desc">Yelp's servers now hold your Gmail password indefinitely — until you change it</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-body"><div class="flow-step-title">Yelp logs into Gmail AS YOU</div><div class="flow-step-desc">Full access to ALL email, not just contacts. Google has no way to distinguish you from Yelp acting as you.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-body"><div class="flow-step-title">No revocation without password change</div><div class="flow-step-desc">Changing your Gmail password to remove Yelp's access breaks every other app that knew your old password</div></div></div>
+  </div>
+</div>
+<h3>What OAuth Was Designed to Solve</h3>
+<table class="compare-table">
+<tr><th>Problem</th><th>Pre-OAuth</th><th>OAuth Solution</th></tr>
+<tr><td><strong>Credential exposure</strong></td><td>Third-party holds your password forever</td><td>Third-party gets a scoped, expiring token — never sees your password</td></tr>
+<tr><td><strong>Scope of access</strong></td><td>Full account access always</td><td>Granular scopes: <code>read:contacts</code>, <code>send:email</code></td></tr>
+<tr><td><strong>Revocation</strong></td><td>Change password = revoke everything</td><td>Revoke individual tokens per app without affecting others</td></tr>
+<tr><td><strong>Breach impact</strong></td><td>Third-party breach = your password leaked</td><td>Third-party breach = limited-scope token leaked (not your password)</td></tr>
+<tr><td><strong>Expiration</strong></td><td>Access never expires unless password changes</td><td>Access tokens expire in minutes; refresh tokens can be rotated</td></tr>
+<tr><td><strong>Audit trail</strong></td><td>Resource server can't distinguish user from app</td><td>Authorization server records every token grant with timestamp</td></tr>
+</table>
+</section>
+
+<!-- OAUTH CORE -->
+<section class="section" id="sec-core">
+<div class="section-eyebrow">Section 03 · Core Concepts</div>
+<h2>OAuth 2.0 — The Complete Picture</h2>
+<p>OAuth 2.0 is defined in <strong>RFC 6749</strong> (the framework) and <strong>RFC 6750</strong> (Bearer token usage). It is an <em>authorization framework</em>, not an authentication system — a critical distinction.</p>
+<div class="info-box note">
+  <div class="info-box-label">Critical Distinction</div>
+  <p>OAuth 2.0 answers: <strong>"Can this application do X on behalf of this user?"</strong> — It does NOT answer: "Who is this user?" That's what OpenID Connect adds on top.</p>
+</div>
+<h3>The Two Required Endpoints</h3>
+<h4>1. Authorization Endpoint — User Interaction</h4>
+<p>This is where the user logs in and gives consent. The browser redirects here. The client never sees the user's credentials — this is the security foundation of OAuth.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Authorization Request</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="hdr">GET</span> /authorize<span class="op">?</span>
+  <span class="key">response_type</span><span class="op">=</span><span class="val">code</span>
+  <span class="op">&amp;</span><span class="key">client_id</span><span class="op">=</span><span class="val">my-app-id</span>
+  <span class="op">&amp;</span><span class="key">redirect_uri</span><span class="op">=</span><span class="url">https://myapp.com/callback</span>
+  <span class="op">&amp;</span><span class="key">scope</span><span class="op">=</span><span class="val">openid profile email read:contacts</span>
+  <span class="op">&amp;</span><span class="key">state</span><span class="op">=</span><span class="val">xK9f2mP3qR7t</span>         <span class="cmt">← CSRF protection, random</span>
+  <span class="op">&amp;</span><span class="key">code_challenge</span><span class="op">=</span><span class="val">E9Melhoa2Ow...</span>  <span class="cmt">← PKCE challenge</span>
+  <span class="op">&amp;</span><span class="key">code_challenge_method</span><span class="op">=</span><span class="val">S256</span>
+<span class="hdr">Host:</span> <span class="url">accounts.google.com</span></pre>
+</div>
+<h4>2. Token Endpoint — Server-to-Server</h4>
+<p>This happens backend-to-backend, invisible to the browser. The client exchanges the authorization code for actual tokens.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Token Exchange Request</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="hdr">POST</span> /token
+<span class="hdr">Host:</span> <span class="url">accounts.google.com</span>
+<span class="hdr">Content-Type:</span> <span class="val">application/x-www-form-urlencoded</span>
+
+<span class="key">grant_type</span><span class="op">=</span><span class="val">authorization_code</span>
+<span class="op">&amp;</span><span class="key">code</span><span class="op">=</span><span class="val">SplxlOBeZQQYbYS6WxSbIA</span>
+<span class="op">&amp;</span><span class="key">redirect_uri</span><span class="op">=</span><span class="url">https://myapp.com/callback</span>
+<span class="op">&amp;</span><span class="key">client_id</span><span class="op">=</span><span class="val">my-app-id</span>
+<span class="op">&amp;</span><span class="key">client_secret</span><span class="op">=</span><span class="val">super-secret</span>     <span class="cmt">← server-side only, never in browser</span>
+<span class="op">&amp;</span><span class="key">code_verifier</span><span class="op">=</span><span class="val">dBjftJeZ4CVP-mB9...</span>  <span class="cmt">← PKCE verifier</span></pre>
+</div>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Token Response</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="op">{</span>
+  <span class="key">"access_token"</span><span class="op">:</span>  <span class="str">"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOi..."</span><span class="op">,</span>
+  <span class="key">"token_type"</span><span class="op">:</span>    <span class="str">"Bearer"</span><span class="op">,</span>
+  <span class="key">"expires_in"</span><span class="op">:</span>    <span class="num">3600</span><span class="op">,</span>          <span class="cmt">← seconds until access_token expires</span>
+  <span class="key">"refresh_token"</span><span class="op">:</span> <span class="str">"8xLOxBtZp8w4iY..."</span><span class="op">,</span>  <span class="cmt">← long-lived, store securely</span>
+  <span class="key">"id_token"</span><span class="op">:</span>      <span class="str">"eyJhbGciOiJSUzI..."</span><span class="op">,</span>  <span class="cmt">← OIDC only, JWT always</span>
+  <span class="key">"scope"</span><span class="op">:</span>         <span class="str">"openid profile email read:contacts"</span>
+<span class="op">}</span></pre>
+</div>
+<h3>Confidential vs Public Clients</h3>
+<p>This is fundamental. The entire security model differs based on whether a client can securely store a secret.</p>
+<table class="compare-table">
+<tr><th>Client Type</th><th>Can Keep Secrets?</th><th>Examples</th><th>Client Secret?</th><th>PKCE Required?</th></tr>
+<tr><td><strong>Confidential</strong></td><td><span class="tag green">Yes</span></td><td>Server-side apps, backend services</td><td><span class="tag green">Yes</span></td><td>Recommended</td></tr>
+<tr><td><strong>Public</strong></td><td><span class="tag red">No</span></td><td>SPAs, mobile apps, desktop apps</td><td><span class="tag red">No</span></td><td><span class="tag green">Required</span></td></tr>
+</table>
+<div class="info-box warn">
+  <div class="info-box-label">Why This Matters</div>
+  <p>A mobile app's code can be reverse-engineered. Any "client secret" in a mobile app is extractable. Public clients cannot use client secrets — hence PKCE was invented to compensate.</p>
+</div>
+</section>
+
+<!-- ROLES -->
+<section class="section" id="sec-roles">
+<div class="section-eyebrow">Section 04 · Roles</div>
+<h2>The Four OAuth Roles</h2>
+<p>Every actor in every OAuth flow maps to one of four defined roles.</p>
+<div class="card-grid">
+  <div class="card" style="border-color:var(--yellow)"><div class="card-icon">👤</div><h4 style="color:var(--yellow)">Resource Owner</h4><p>The entity that owns the protected resource. Usually a human user. Grants delegated access to the client.</p><p style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">Example: You, the Gmail user</p></div>
+  <div class="card" style="border-color:var(--accent)"><div class="card-icon">📱</div><h4 style="color:var(--accent)">Client</h4><p>The application requesting access. Acts on behalf of the resource owner. Must be registered with the authorization server.</p><p style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">Example: Yelp wanting your contacts</p></div>
+  <div class="card" style="border-color:var(--accent2)"><div class="card-icon">🏛️</div><h4 style="color:var(--accent2)">Authorization Server</h4><p>Issues tokens after authenticating the resource owner and getting consent. The trust anchor of the system. May be separate from the resource server.</p><p style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">Example: accounts.google.com</p></div>
+  <div class="card" style="border-color:var(--accent3)"><div class="card-icon">🗄️</div><h4 style="color:var(--accent3)">Resource Server</h4><p>Hosts the protected resources (APIs). Validates the access token on each request. Often the same service as the authorization server.</p><p style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">Example: contacts.google.com API</p></div>
+</div>
+<h3>Client Registration</h3>
+<p>Before any OAuth flow, the client registers with the authorization server:</p>
+<table class="compare-table">
+<tr><th>Value</th><th>Description</th><th>Public?</th></tr>
+<tr><td><code>client_id</code></td><td>Unique app identifier. Included in all requests.</td><td><span class="tag green">Yes</span></td></tr>
+<tr><td><code>client_secret</code></td><td>Shared secret for confidential clients only.</td><td><span class="tag red">Server only</span></td></tr>
+<tr><td><code>redirect_uris</code></td><td>Exact URIs for redirect. Pre-registration prevents open redirect attacks.</td><td><span class="tag green">Yes</span></td></tr>
+<tr><td><code>grant_types</code></td><td>Which grant types this client is allowed to use.</td><td><span class="tag blue">Configured</span></td></tr>
+<tr><td><code>scopes</code></td><td>Maximum scopes this client can ever request.</td><td><span class="tag blue">Configured</span></td></tr>
+</table>
+</section>
+
+<!-- GRANT TYPES -->
+<section class="section" id="sec-grants">
+<div class="section-eyebrow">Section 05 · Grant Types</div>
+<h2>All Grant Types — What They Are &amp; Why They Exist</h2>
+<p>A <strong>grant type</strong> defines the mechanism by which the client obtains an access token. Different application architectures require different flows.</p>
+<div class="info-box tip">
+  <div class="info-box-label">Mental Model</div>
+  <p>Grant types are different roads to the same destination (an access token). Which road you take depends on your application type, whether a user is present, and your security requirements.</p>
+</div>
+<table class="compare-table">
+<tr><th>Grant Type</th><th>RFC</th><th>Use Case</th><th>User Present?</th><th>Status</th></tr>
+<tr><td><strong>Authorization Code</strong></td><td>RFC 6749</td><td>Server-side web apps</td><td><span class="tag green">Yes</span></td><td><span class="tag green">Current</span></td></tr>
+<tr><td><strong>Auth Code + PKCE</strong></td><td>RFC 7636</td><td>SPAs, mobile, all public clients</td><td><span class="tag green">Yes</span></td><td><span class="tag green">Recommended</span></td></tr>
+<tr><td><strong>Client Credentials</strong></td><td>RFC 6749</td><td>Machine-to-machine (no user)</td><td><span class="tag red">No</span></td><td><span class="tag green">Current</span></td></tr>
+<tr><td><strong>Device Code</strong></td><td>RFC 8628</td><td>TVs, CLIs, browserless devices</td><td>Indirect</td><td><span class="tag green">Current</span></td></tr>
+<tr><td><strong>Refresh Token</strong></td><td>RFC 6749</td><td>Get new access tokens silently</td><td><span class="tag red">No</span></td><td><span class="tag green">Current</span></td></tr>
+<tr><td><strong>JWT Bearer</strong></td><td>RFC 7523</td><td>Service-to-service with asymmetric keys</td><td><span class="tag red">No</span></td><td><span class="tag green">Current</span></td></tr>
+<tr><td>~~Implicit~~</td><td>RFC 6749</td><td>Was for SPAs pre-PKCE</td><td>Yes</td><td><span class="tag red">Deprecated</span></td></tr>
+<tr><td>~~ROPC~~</td><td>RFC 6749</td><td>Direct username/password</td><td>Yes</td><td><span class="tag red">Deprecated</span></td></tr>
+</table>
+<h3>Why Implicit Was Deprecated</h3>
+<p>Implicit returned the access token directly in the URL fragment (<code>#access_token=...</code>). This meant the token ends up in browser history, in server logs via Referer headers, and visible to injected scripts. No refresh token was issued either. PKCE with Auth Code solves all of these.</p>
+<h3>Why ROPC Was Deprecated</h3>
+<p>Resource Owner Password Credentials let the client collect the username and password directly and trade them for a token. This <strong>defeats the entire purpose of OAuth</strong> — the user gives credentials to the third-party app again. It's the password anti-pattern wearing an OAuth costume.</p>
+</section>
+
+<!-- AUTH CODE FLOW -->
+<section class="section" id="sec-authcode">
+<div class="section-eyebrow">Section 06 · Flows</div>
+<h2>Authorization Code Flow — Every Step Explained</h2>
+<p>This is the most important OAuth flow. Every other flow is a variation or simplification of it.</p>
+<div class="flow">
+  <div class="flow-title">Authorization Code Flow — Complete 9-Step Sequence</div>
+  <div class="flow-vertical">
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--yellow)">1</div><div class="flow-step-body"><div class="flow-step-from">User → Client</div><div class="flow-step-title">User clicks "Login with Google"</div><div class="flow-step-desc">Client generates random <code>state</code> value (CSRF protection) and <code>code_verifier</code> (PKCE). Stores both in session.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--accent)">2</div><div class="flow-step-body"><div class="flow-step-from">Client → Browser</div><div class="flow-step-title">Client redirects browser to Authorization Endpoint</div><div class="flow-step-desc">302 redirect to <code>accounts.google.com/authorize?response_type=code&amp;client_id=...&amp;state=...&amp;code_challenge=...</code></div></div></div>
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--accent)">3</div><div class="flow-step-body"><div class="flow-step-from">Browser → Authorization Server</div><div class="flow-step-title">User authenticates with the Authorization Server</div><div class="flow-step-desc">Google shows its login page. The client (Yelp) NEVER sees the user's password. This is the core security benefit.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--accent)">4</div><div class="flow-step-body"><div class="flow-step-from">Auth Server → User</div><div class="flow-step-title">Consent screen displayed</div><div class="flow-step-desc">"Yelp wants to: Read your contacts, View your profile." User clicks Allow. Auth server records this consent grant.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--accent2)">5</div><div class="flow-step-body"><div class="flow-step-from">Auth Server → Browser → Client</div><div class="flow-step-title">Auth server redirects back with authorization code</div><div class="flow-step-desc"><code>myapp.com/callback?code=SplxlOBeZQ&amp;state=xK9f2mP3qR7t</code> — Code is short-lived (typically 60s) and single-use.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--accent2)">6</div><div class="flow-step-body"><div class="flow-step-from">Client validates</div><div class="flow-step-title">Client verifies the state parameter</div><div class="flow-step-desc">If state doesn't match what was sent in step 1, abort immediately — this is a CSRF attack attempt.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--accent3)">7</div><div class="flow-step-body"><div class="flow-step-from">Client → Auth Server (server-to-server)</div><div class="flow-step-title">Client exchanges code for tokens</div><div class="flow-step-desc">POST to <code>/token</code> with code, client_id, client_secret (or PKCE verifier), redirect_uri. Happens backend-to-backend — browser never sees this.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--accent3)">8</div><div class="flow-step-body"><div class="flow-step-from">Auth Server → Client</div><div class="flow-step-title">Auth server returns tokens</div><div class="flow-step-desc">Returns: <code>access_token</code>, <code>refresh_token</code>, <code>id_token</code> (if OIDC), <code>expires_in</code>, <code>scope</code>.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num" style="background:var(--green)">9</div><div class="flow-step-body"><div class="flow-step-from">Client → Resource Server</div><div class="flow-step-title">Client calls the API with the access token</div><div class="flow-step-desc"><code>Authorization: Bearer eyJhbGciOiJSUzI1Ni...</code> on every API request.</div></div></div>
+  </div>
+</div>
+<h3>Why the Code? Why Not Return the Token Directly?</h3>
+<p>The authorization code is an intermediate step for a crucial reason: it separates the browser-facing channel from the token delivery channel.</p>
+<table class="compare-table">
+<tr><th>Without Code (Implicit)</th><th>With Code (Auth Code)</th></tr>
+<tr><td>Token in URL → in browser history → in Referer headers</td><td>Code in URL — harmless without client secret or PKCE verifier</td></tr>
+<tr><td>Token accessible to any JavaScript on the page</td><td>Token delivered to backend via secure server-to-server call</td></tr>
+<tr><td>No way to bind token to specific client</td><td>Token bound to client via client_secret or PKCE</td></tr>
+</table>
+</section>
+
+<!-- PKCE -->
+<section class="section" id="sec-pkce">
+<div class="section-eyebrow">Section 07 · Security</div>
+<h2>PKCE — Proof Key for Code Exchange</h2>
+<p>PKCE (pronounced "pixie") is defined in <strong>RFC 7636</strong>. It solves authorization code interception for public clients and is now recommended for ALL clients.</p>
+<h3>The Attack PKCE Prevents</h3>
+<p>Without PKCE, a malicious app on the same mobile device can register the same redirect URI scheme (e.g., <code>myapp://callback</code>) and intercept the authorization code. The attacker can then exchange the code for tokens — even though it was meant for the legitimate app.</p>
+<div class="flow">
+  <div class="flow-title">PKCE Mechanics</div>
+  <div class="flow-vertical">
+    <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-body"><div class="flow-step-title">Generate code_verifier (client only)</div><div class="flow-step-desc">A cryptographically random string: 43–128 URL-safe characters. Generated fresh per auth request. <strong>Never sent anywhere except the token endpoint.</strong></div></div></div>
+    <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-body"><div class="flow-step-title">Derive code_challenge</div><div class="flow-step-desc"><code>code_challenge = BASE64URL(SHA256(code_verifier))</code> — a one-way hash. This IS sent publicly in the auth request.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-body"><div class="flow-step-title">Auth server stores challenge with the issued code</div><div class="flow-step-desc">When the auth server issues the authorization code, it stores the code_challenge alongside it.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-body"><div class="flow-step-title">Client sends code_verifier in token exchange</div><div class="flow-step-desc">Auth server hashes the verifier and compares to stored challenge. Only the original requester knows the verifier — an interceptor who stole just the code cannot complete the exchange.</div></div></div>
+  </div>
+</div>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">JavaScript — PKCE Implementation</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// Generate code_verifier — cryptographically random</span>
+<span class="kw">function</span> <span class="fn">generateCodeVerifier</span>() {
+  <span class="kw">const</span> array = <span class="kw">new</span> <span class="fn">Uint8Array</span>(<span class="num">32</span>);
+  crypto.<span class="fn">getRandomValues</span>(array);
+  <span class="kw">return</span> <span class="fn">btoa</span>(<span class="fn">String.fromCharCode</span>(...array))
+    .<span class="fn">replace</span>(<span class="op">/\+/g</span>, <span class="str">'-'</span>).<span class="fn">replace</span>(<span class="op">/\//g</span>, <span class="str">'_'</span>).<span class="fn">replace</span>(<span class="op">/=/g</span>, <span class="str">''</span>);
+}
+
+<span class="cmt">// Derive code_challenge = BASE64URL(SHA256(verifier))</span>
+<span class="kw">async function</span> <span class="fn">generateCodeChallenge</span>(verifier) {
+  <span class="kw">const</span> data = <span class="kw">new</span> <span class="fn">TextEncoder</span>().<span class="fn">encode</span>(verifier);
+  <span class="kw">const</span> digest = <span class="kw">await</span> crypto.subtle.<span class="fn">digest</span>(<span class="str">'SHA-256'</span>, data);
+  <span class="kw">return</span> <span class="fn">btoa</span>(<span class="fn">String.fromCharCode</span>(...<span class="kw">new</span> <span class="fn">Uint8Array</span>(digest)))
+    .<span class="fn">replace</span>(<span class="op">/\+/g</span>, <span class="str">'-'</span>).<span class="fn">replace</span>(<span class="op">/\//g</span>, <span class="str">'_'</span>).<span class="fn">replace</span>(<span class="op">/=/g</span>, <span class="str">''</span>);
+}
+
+<span class="cmt">// Usage:</span>
+<span class="kw">const</span> verifier = <span class="fn">generateCodeVerifier</span>();
+<span class="kw">const</span> challenge = <span class="kw">await</span> <span class="fn">generateCodeChallenge</span>(verifier);
+sessionStorage.<span class="fn">setItem</span>(<span class="str">'pkce_verifier'</span>, verifier);  <span class="cmt">// store for later</span>
+
+<span class="cmt">// In auth request URL:</span>
+<span class="cmt">// &amp;code_challenge={challenge}&amp;code_challenge_method=S256</span>
+
+<span class="cmt">// In token exchange POST body:</span>
+<span class="cmt">// &amp;code_verifier={sessionStorage.getItem('pkce_verifier')}</span></pre>
+</div>
+</section>
+
+<!-- CLIENT CREDENTIALS -->
+<section class="section" id="sec-clientcreds">
+<div class="section-eyebrow">Section 08 · Flows</div>
+<h2>Client Credentials Flow — Machine to Machine</h2>
+<p>The simplest OAuth flow. No user is involved. The client authenticates directly with the authorization server using its own identity.</p>
+<div class="flow">
+  <div class="flow-title">Client Credentials Flow</div>
+  <div class="flow-vertical">
+    <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-body"><div class="flow-step-title">Service A needs to call Service B's API</div><div class="flow-step-desc">No human present. Service A is a backend job, microservice, or automated process.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-body"><div class="flow-step-title">Service A POSTs to /token with its credentials</div><div class="flow-step-desc"><code>grant_type=client_credentials&amp;client_id=...&amp;client_secret=...&amp;scope=read:orders</code></div></div></div>
+    <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-body"><div class="flow-step-title">Auth Server validates and returns access_token</div><div class="flow-step-desc">No refresh token — the client can just get a new access token whenever needed.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-body"><div class="flow-step-title">Service A calls Service B with the token</div><div class="flow-step-desc"><code>Authorization: Bearer ...</code> on every API request to Service B.</div></div></div>
+  </div>
+</div>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Client Credentials Request</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="hdr">POST</span> /oauth/token
+<span class="hdr">Authorization:</span> <span class="val">Basic base64(client_id:client_secret)</span>
+<span class="hdr">Content-Type:</span> <span class="val">application/x-www-form-urlencoded</span>
+
+<span class="key">grant_type</span><span class="op">=</span><span class="val">client_credentials</span>
+<span class="op">&amp;</span><span class="key">scope</span><span class="op">=</span><span class="val">read:orders write:shipments</span></pre>
+</div>
+<div class="info-box note">
+  <div class="info-box-label">Common Use Cases</div>
+  <p>Microservices calling each other, cron jobs, CI/CD pipelines, data sync daemons — any automated process needing API access without a human in the loop.</p>
+</div>
+</section>
+
+<!-- DEVICE FLOW -->
+<section class="section" id="sec-device">
+<div class="section-eyebrow">Section 09 · Flows</div>
+<h2>Device Authorization Flow</h2>
+<p>Defined in <strong>RFC 8628</strong>. For devices that can't open a browser or accept keyboard input: Smart TVs, gaming consoles, IoT devices, CLI tools.</p>
+<div class="flow">
+  <div class="flow-title">Device Code Flow — The TV Login Pattern</div>
+  <div class="flow-vertical">
+    <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-body"><div class="flow-step-title">Device requests a device_code and user_code</div><div class="flow-step-desc">POST to <code>/device/code</code> with <code>client_id</code> and <code>scope</code>. Response includes <code>device_code</code>, <code>user_code</code>, <code>verification_uri</code>, and polling interval.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-body"><div class="flow-step-title">Device shows the user_code on screen</div><div class="flow-step-desc">TV shows: "Go to <code>google.com/device</code> and enter code: BDWR-CQPF"</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-body"><div class="flow-step-title">Device polls the token endpoint</div><div class="flow-step-desc">Every few seconds: POST /token with <code>grant_type=urn:ietf:params:oauth:grant-type:device_code</code>. Gets <code>authorization_pending</code> until user approves.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-body"><div class="flow-step-title">User goes to URL on phone/laptop and enters code</div><div class="flow-step-desc">Logs in on their phone, approves. Authorization server marks the device_code as approved.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-body"><div class="flow-step-title">Device's next poll returns the access token</div><div class="flow-step-desc">The TV is now authenticated — no browser was needed on the device itself.</div></div></div>
+  </div>
+</div>
+</section>
+
+<!-- TOKENS -->
+<section class="section" id="sec-tokens">
+<div class="section-eyebrow">Section 10 · Tokens</div>
+<h2>Token Types: Access, Refresh, ID</h2>
+<p>OAuth and OIDC use three distinct token types. Each has a different purpose, lifetime, format, audience, and security profile.</p>
+<table class="compare-table">
+<tr><th>Token</th><th>Purpose</th><th>Format</th><th>Lifetime</th><th>Validated By</th><th>Revocable?</th></tr>
+<tr><td><strong>Access Token</strong></td><td>Call APIs / access resources</td><td>JWT or opaque</td><td>5–60 minutes</td><td>Resource Server</td><td>At expiry; or introspection</td></tr>
+<tr><td><strong>Refresh Token</strong></td><td>Get new access tokens</td><td>Opaque string</td><td>Days–months</td><td>Auth Server only</td><td><span class="tag green">Yes, immediately</span></td></tr>
+<tr><td><strong>ID Token</strong></td><td>Prove user's identity</td><td>Always JWT</td><td>Session-length</td><td>Client Application</td><td>Logically via logout</td></tr>
+</table>
+<h3>Opaque vs JWT Access Tokens</h3>
+<table class="compare-table">
+<tr><th></th><th>Opaque Token</th><th>JWT Access Token</th></tr>
+<tr><td>Looks like</td><td><code>8xLOxBtZp8w4iY2j...</code> (random)</td><td><code>eyJhbGciOi...</code> (three parts)</td></tr>
+<tr><td>Resource Server validation</td><td>Must call <code>/introspect</code> endpoint</td><td>Local validation using public key — no network call</td></tr>
+<tr><td>Revocation speed</td><td>Immediate (single source of truth)</td><td>Must wait for expiry unless using introspection</td></tr>
+<tr><td>Carries claims?</td><td>No — lookup required</td><td>Yes — user ID, scopes, roles embedded</td></tr>
+<tr><td>Performance</td><td>Slower (introspection network call)</td><td>Faster (local crypto verification)</td></tr>
+<tr><td>Best for</td><td>When immediate revocation is critical</td><td>Distributed systems, microservices</td></tr>
+</table>
+<h3>Token Introspection (RFC 7662)</h3>
+<p>When using opaque tokens, the resource server validates them by calling the introspection endpoint:</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Token Introspection</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="hdr">POST</span> /introspect
+<span class="hdr">Authorization:</span> <span class="val">Basic base64(resource_server_id:secret)</span>
+<span class="hdr">Content-Type:</span> <span class="val">application/x-www-form-urlencoded</span>
+
+<span class="key">token</span><span class="op">=</span><span class="val">8xLOxBtZp8w4iY2j...</span>
+
+<span class="cmt">// Response:</span>
+<span class="op">{</span>
+  <span class="key">"active"</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span>
+  <span class="key">"sub"</span><span class="op">:</span>    <span class="str">"user-123"</span><span class="op">,</span>
+  <span class="key">"scope"</span><span class="op">:</span> <span class="str">"read:contacts"</span><span class="op">,</span>
+  <span class="key">"exp"</span><span class="op">:</span>   <span class="num">1716239022</span>
+<span class="op">}</span></pre>
+</div>
+</section>
+
+<!-- JWT DEEP DIVE -->
+<section class="section" id="sec-jwt">
+<div class="section-eyebrow">Section 11 · JWT</div>
+<h2>JWT — JSON Web Tokens, Complete Deep Dive</h2>
+<p>JWT is defined in <strong>RFC 7519</strong>. It's a compact, URL-safe way to represent claims as a JSON object that can be cryptographically signed and optionally encrypted.</p>
+<div class="info-box tip">
+  <div class="info-box-label">Key Insight</div>
+  <p>JWT is NOT an OAuth concept. JWT is a general-purpose token format. OAuth can use JWTs, but JWTs exist completely outside OAuth. OIDC ID Tokens are always JWTs. OAuth Access Tokens may or may not be JWTs.</p>
+</div>
+<h3>JWT Structure — Three Parts</h3>
+<p>A JWT has exactly 3 parts separated by periods. Each part is Base64URL-encoded (not Base64 — URL-safe variant):</p>
+<div class="jwt-display">
+  <span class="jwt-part1">eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Imt5LTIwMjQtMDEifQ</span><span style="color:var(--text3)">.</span><span class="jwt-part2">eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJzdWIiOiIxMTg0MDk5OTMxNTg5NjA4OTEwNzciLCJhdWQiOiI0MDc0MDg3MTgxOTIiLCJleHAiOjE3MTYyMzkwMjIsImlhdCI6MTcxNjIzNTQyMiwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwibmFtZSI6IkphbmUgRG9lIiwibm9uY2UiOiJhYmMxMjMifQ</span><span style="color:var(--text3)">.</span><span class="jwt-part3">SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c_anythingHereIsSignature</span>
+  <div class="jwt-legend">
+    <div class="jwt-legend-item"><div class="jwt-legend-dot" style="background:var(--accent2)"></div>Header: algorithm &amp; key ID</div>
+    <div class="jwt-legend-item"><div class="jwt-legend-dot" style="background:var(--accent)"></div>Payload: claims (your data)</div>
+    <div class="jwt-legend-item"><div class="jwt-legend-dot" style="background:var(--accent3)"></div>Signature: cryptographic proof</div>
+  </div>
+</div>
+<h3>Header</h3>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">JWT Header (Decoded)</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="op">{</span>
+  <span class="key">"alg"</span><span class="op">:</span> <span class="str">"RS256"</span><span class="op">,</span>     <span class="cmt">← Algorithm used to sign (RS256, ES256, HS256...)</span>
+  <span class="key">"typ"</span><span class="op">:</span> <span class="str">"JWT"</span><span class="op">,</span>      <span class="cmt">← Token type</span>
+  <span class="key">"kid"</span><span class="op">:</span> <span class="str">"ky-2024-01"</span> <span class="cmt">← Key ID — tells verifier which public key to use from JWKS</span>
+<span class="op">}</span></pre>
+</div>
+<h3>Payload — Three Types of Claims</h3>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">JWT Payload — All Claim Types Annotated</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="op">{</span>
+  <span class="cmt">// REGISTERED CLAIMS (RFC 7519 standard — all optional but highly recommended)</span>
+  <span class="key">"iss"</span><span class="op">:</span> <span class="str">"https://accounts.google.com"</span><span class="op">,</span>
+         <span class="cmt">↑ Issuer — who created this token. Must be HTTPS URL in OIDC.</span>
+
+  <span class="key">"sub"</span><span class="op">:</span> <span class="str">"1184099931589608910"</span><span class="op">,</span>
+         <span class="cmt">↑ Subject — unique, stable user ID. Not an email. Never reassigned.</span>
+
+  <span class="key">"aud"</span><span class="op">:</span> <span class="str">"407408718192.apps.googleusercontent.com"</span><span class="op">,</span>
+         <span class="cmt">↑ Audience — who this token is FOR. Recipient MUST verify they're in aud.</span>
+
+  <span class="key">"exp"</span><span class="op">:</span> <span class="num">1716239022</span><span class="op">,</span>   <span class="cmt">← Expiration time (Unix epoch seconds). MUST verify.</span>
+  <span class="key">"nbf"</span><span class="op">:</span> <span class="num">1716235422</span><span class="op">,</span>   <span class="cmt">← Not Before — token invalid before this time.</span>
+  <span class="key">"iat"</span><span class="op">:</span> <span class="num">1716235422</span><span class="op">,</span>   <span class="cmt">← Issued At — when was the token created.</span>
+  <span class="key">"jti"</span><span class="op">:</span> <span class="str">"unique-id-xyz"</span><span class="op">,</span> <span class="cmt">← JWT ID — unique per token. Use for replay detection.</span>
+
+  <span class="cmt">// PUBLIC CLAIMS (OIDC standard scope-based)</span>
+  <span class="key">"name"</span><span class="op">:</span>           <span class="str">"Jane Doe"</span><span class="op">,</span>
+  <span class="key">"email"</span><span class="op">:</span>          <span class="str">"jane@example.com"</span><span class="op">,</span>
+  <span class="key">"email_verified"</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span>
+  <span class="key">"picture"</span><span class="op">:</span>        <span class="str">"https://..."</span><span class="op">,</span>
+  <span class="key">"nonce"</span><span class="op">:</span>          <span class="str">"n-0S6_WzA2Mj"</span><span class="op">,</span>  <span class="cmt">← OIDC: replay prevention</span>
+
+  <span class="cmt">// PRIVATE CLAIMS (custom to your application)</span>
+  <span class="key">"roles"</span><span class="op">:</span>   <span class="op">[</span><span class="str">"admin"</span><span class="op">,</span> <span class="str">"editor"</span><span class="op">]</span><span class="op">,</span>
+  <span class="key">"org_id"</span><span class="op">:</span>  <span class="str">"org-7f8g9h"</span><span class="op">,</span>
+  <span class="key">"plan"</span><span class="op">:</span>    <span class="str">"enterprise"</span>
+<span class="op">}</span></pre>
+</div>
+<h3>Signature Algorithms</h3>
+<table class="compare-table">
+<tr><th>Algorithm</th><th>Type</th><th>Key</th><th>Use Case</th><th>Recommended?</th></tr>
+<tr><td><code>RS256</code></td><td>Asymmetric</td><td>RSA 2048+</td><td>Production standard, OIDC default</td><td><span class="tag green">Yes</span></td></tr>
+<tr><td><code>ES256</code></td><td>Asymmetric</td><td>EC P-256</td><td>Compact keys, same security, faster</td><td><span class="tag green">Preferred</span></td></tr>
+<tr><td><code>RS512</code></td><td>Asymmetric</td><td>RSA 2048+</td><td>Higher hash strength</td><td><span class="tag green">Yes</span></td></tr>
+<tr><td><code>HS256</code></td><td>Symmetric</td><td>Shared secret</td><td>Simple internal services only</td><td><span class="tag yellow">Limited</span></td></tr>
+<tr><td><code>none</code></td><td>None</td><td>None</td><td>Unsigned — testing only</td><td><span class="tag red">NEVER production</span></td></tr>
+</table>
+<h3>Why Asymmetric Signing Matters</h3>
+<p>With RS256/ES256: the auth server signs with its <strong>private key</strong>. Anyone can verify using the published <strong>public key</strong> (from the JWKS endpoint). The resource server can verify tokens locally without any network call to the auth server — critical for performance at scale.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">How Signature Verification Works</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// Auth server creates signature:</span>
+signature = <span class="fn">RSA_SHA256_Sign</span>(
+  <span class="fn">base64url</span>(header) + <span class="str">"."</span> + <span class="fn">base64url</span>(payload),
+  privateKey   <span class="cmt">← Only the auth server has this</span>
+)
+
+<span class="cmt">// Resource server verifies (no private key needed!):</span>
+isValid = <span class="fn">RSA_SHA256_Verify</span>(
+  <span class="fn">base64url</span>(header) + <span class="str">"."</span> + <span class="fn">base64url</span>(payload),
+  signature,
+  publicKey    <span class="cmt">← Fetched from JWKS endpoint and cached</span>
+)</pre>
+</div>
+</section>
+
+<!-- JWT SECURITY -->
+<section class="section" id="sec-jwtsec">
+<div class="section-eyebrow">Section 12 · Security</div>
+<h2>JWT Security — Validation, Pitfalls &amp; Attacks</h2>
+<h3>Complete JWT Validation Checklist</h3>
+<p>Every application receiving a JWT MUST validate ALL of these:</p>
+<div class="flow">
+  <div class="flow-title">JWT Validation — All Steps Required</div>
+  <div class="flow-vertical">
+    <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-body"><div class="flow-step-title">Parse structure</div><div class="flow-step-desc">Exactly 3 parts separated by dots. Each part must be valid Base64URL. Header must be valid JSON.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-body"><div class="flow-step-title">Verify algorithm is allowed</div><div class="flow-step-desc">Check <code>alg</code> in header matches your allowlist. NEVER accept <code>none</code>. NEVER dynamically accept any algorithm from the header.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-body"><div class="flow-step-title">Fetch correct public key</div><div class="flow-step-desc">Use <code>kid</code> from header to look up the right key from JWKS. Cache JWKS; re-fetch only on unknown <code>kid</code>.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-body"><div class="flow-step-title">Verify the signature</div><div class="flow-step-desc">Cryptographic verification over header+payload using the public key. If this fails, reject immediately. Do not inspect claims.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-body"><div class="flow-step-title">Check exp (expiration)</div><div class="flow-step-desc"><code>now &lt; exp</code>. Allow small clock skew (30–60s). Reject expired tokens.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">6</div><div class="flow-step-body"><div class="flow-step-title">Check iss (issuer)</div><div class="flow-step-desc">Must exactly match expected issuer URL. Prevents tokens from one service being used at another.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">7</div><div class="flow-step-body"><div class="flow-step-title">Check aud (audience)</div><div class="flow-step-desc">Must contain your client_id or API identifier. Prevents token substitution attacks across services.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">8</div><div class="flow-step-body"><div class="flow-step-title">Check nbf (not before) if present</div><div class="flow-step-desc"><code>now >= nbf</code>. Reject if current time is before the token's valid-from time.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">9</div><div class="flow-step-body"><div class="flow-step-title">Check nonce (OIDC ID Tokens only)</div><div class="flow-step-desc">Must match the nonce from the original authorization request. Prevents replay attacks on ID tokens.</div></div></div>
+  </div>
+</div>
+<h3>The alg:none Attack</h3>
+<div class="info-box danger">
+  <div class="info-box-label">Critical Vulnerability — alg:none</div>
+  <p>Some early JWT libraries accepted <code>"alg":"none"</code> with no signature. An attacker could forge any claims. The spec technically allows unsigned tokens for trusted channels — but this was widely misimplemented. Fix: always specify your allowed algorithms explicitly, never accept <code>none</code> in production.</p>
+</div>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">The Fix — Always Specify Allowed Algorithms</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// WRONG — library may accept "none" dynamically</span>
+jwt.<span class="fn">verify</span>(token, publicKey)
+
+<span class="cmt">// CORRECT — allowlist only specific algorithms</span>
+jwt.<span class="fn">verify</span>(token, publicKey, { algorithms: [<span class="str">'RS256'</span>] })
+
+<span class="cmt">// Also correct for multiple valid algorithms</span>
+jwt.<span class="fn">verify</span>(token, publicKey, { algorithms: [<span class="str">'RS256'</span>, <span class="str">'ES256'</span>] })</pre>
+</div>
+<h3>RS256 → HS256 Confusion Attack</h3>
+<p>If a server normally uses RS256 (asymmetric), an attacker might send a token signed with HS256 using the <strong>server's own public key as the HMAC secret</strong>. A vulnerable library told to accept "any" algorithm would use the public key as the HMAC verification key — and the verification would succeed because the attacker signed with it. Again: always specify the exact expected algorithm.</p>
+</section>
+
+<!-- REFRESH TOKENS -->
+<section class="section" id="sec-refresh">
+<div class="section-eyebrow">Section 13 · Tokens</div>
+<h2>Refresh Tokens — Lifecycle &amp; Security</h2>
+<p>Refresh tokens allow clients to obtain new access tokens without requiring the user to re-authenticate. They are long-lived credentials and must be protected as carefully as passwords.</p>
+<h3>Why Refresh Tokens Exist</h3>
+<p>Access tokens are short-lived (5–60 min) to limit misuse if stolen. But making users log in every hour is bad UX. Refresh tokens solve this: they're long-lived (days or months), only used with the authorization server (not APIs directly), and can be rotated to detect theft.</p>
+<h3>Refresh Token Rotation</h3>
+<p>Best practice: every time a refresh token is used, it is replaced with a new one. The old one is immediately invalidated.</p>
+<div class="info-box success">
+  <div class="info-box-label">Why Rotation Detects Theft</div>
+  <p>If an attacker steals a refresh token, the moment either the attacker or the legitimate user uses it, the authorization server can detect a "double use" and revoke the entire token family. This dramatically limits the impact of a stolen refresh token.</p>
+</div>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Refresh Token Request</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="hdr">POST</span> /token
+<span class="hdr">Content-Type:</span> <span class="val">application/x-www-form-urlencoded</span>
+
+<span class="key">grant_type</span><span class="op">=</span><span class="val">refresh_token</span>
+<span class="op">&amp;</span><span class="key">refresh_token</span><span class="op">=</span><span class="val">tGzv3JOkF0XG5Qx2TlKWIA</span>
+<span class="op">&amp;</span><span class="key">client_id</span><span class="op">=</span><span class="val">my-app</span>
+<span class="op">&amp;</span><span class="key">client_secret</span><span class="op">=</span><span class="val">secret</span>   <span class="cmt">← or PKCE verifier for public clients</span></pre>
+</div>
+<h3>Refresh Token Storage by Context</h3>
+<table class="compare-table">
+<tr><th>Context</th><th>Storage</th><th>Why</th></tr>
+<tr><td>Server-side web app</td><td>Encrypted in database, session-bound</td><td>Never touches the browser</td></tr>
+<tr><td>SPA</td><td>Memory only (or BFF pattern)</td><td>localStorage is XSS-accessible; use BFF instead</td></tr>
+<tr><td>Mobile app</td><td>iOS Keychain / Android Keystore</td><td>Hardware-backed secure storage, tied to app</td></tr>
+<tr><td>Desktop app</td><td>OS credential manager</td><td>Encrypted by OS, user-account-bound</td></tr>
+</table>
+</section>
+
+<!-- OIDC -->
+<section class="section" id="sec-oidc">
+<div class="section-eyebrow">Section 14 · OIDC</div>
+<h2>OpenID Connect — Authentication on Top of OAuth</h2>
+<p>OIDC is a simple identity layer on top of OAuth 2.0. It allows clients to verify who the user is (authentication) in addition to what the app can do (authorization).</p>
+<h3>The OAuth 2.0 Authentication Problem</h3>
+<p>OAuth 2.0 alone cannot safely authenticate users. If you receive an access token, all you know is that <em>someone</em> authorized its issuance. You don't know who that someone is, the token format is unspecified, and there's no standard way to verify claims.</p>
+<div class="info-box danger">
+  <div class="info-box-label">Why OAuth Alone ≠ Authentication</div>
+  <p>Service A gets an access token for Alice from Google. Service A can act as Alice. But if Service A forwards that token to Service B claiming "I'm Alice," Service B can't verify this safely — OAuth access tokens have no standardized audience, issuer, or format. OIDC's ID Token fixes all of this.</p>
+</div>
+<h3>What OIDC Adds</h3>
+<div class="card-grid">
+  <div class="card"><div class="card-icon">🆔</div><h4>ID Token</h4><p>A JWT specifically for authenticating the user. Has standardized claims (sub, iss, aud, nonce). Client validates this to prove who the user is.</p></div>
+  <div class="card"><div class="card-icon">👤</div><h4>UserInfo Endpoint</h4><p>Standard endpoint to get additional profile info beyond the ID token, using the access token.</p></div>
+  <div class="card"><div class="card-icon">🔍</div><h4>Discovery Document</h4><p>Standardized JSON at <code>/.well-known/openid-configuration</code> describing all endpoints, scopes, and algorithms.</p></div>
+  <div class="card"><div class="card-icon">🗝️</div><h4>JWKS Endpoint</h4><p>Published public keys in JWK Set format. Clients verify ID token signatures using these without any secret sharing.</p></div>
+  <div class="card"><div class="card-icon">📦</div><h4>Standard Scopes</h4><p><code>openid</code> (required), <code>profile</code>, <code>email</code>, <code>address</code>, <code>phone</code>, <code>offline_access</code>.</p></div>
+  <div class="card"><div class="card-icon">🔚</div><h4>End Session Endpoint</h4><p>Standardized SSO logout — triggers logout across all apps sharing the same identity provider session.</p></div>
+</div>
+<h3>The openid Scope — The Trigger</h3>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">OAuth vs OIDC</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// Pure OAuth (authorization only)</span>
+<span class="key">scope</span><span class="op">=</span><span class="val">read:contacts write:calendar</span>
+<span class="cmt">→ Returns: access_token, refresh_token</span>
+<span class="cmt">→ You know: "someone granted this" — but NOT who</span>
+
+<span class="cmt">// OIDC (authentication + authorization)</span>
+<span class="key">scope</span><span class="op">=</span><span class="val">openid profile email read:contacts</span>
+<span class="cmt">→ Returns: access_token, refresh_token, id_token</span>
+<span class="cmt">→ You know: "Jane Doe (jane@example.com, verified) authorized this"</span></pre>
+</div>
+</section>
+
+<!-- ID TOKEN -->
+<section class="section" id="sec-idtoken">
+<div class="section-eyebrow">Section 15 · OIDC</div>
+<h2>ID Token — Complete Anatomy</h2>
+<p>The ID Token is the cornerstone of OIDC. It is <strong>always a JWT</strong>, always signed, and contains verified claims about the authenticated user.</p>
+<h3>ID Token vs Access Token — The Critical Distinction</h3>
+<table class="compare-table">
+<tr><th>Property</th><th>ID Token</th><th>Access Token</th></tr>
+<tr><td>Who is it for?</td><td>The <strong>Client</strong> (your application)</td><td>The <strong>Resource Server</strong> (the API)</td></tr>
+<tr><td>What does it prove?</td><td>Who the user is (identity)</td><td>What the app can do (authorization)</td></tr>
+<tr><td>Should you send to APIs?</td><td><span class="tag red">NEVER — wrong audience</span></td><td><span class="tag green">Yes, always</span></td></tr>
+<tr><td>Format</td><td>Always JWT</td><td>JWT or opaque</td></tr>
+<tr><td>Contains nonce?</td><td><span class="tag green">Yes (required if sent)</span></td><td>No</td></tr>
+<tr><td>aud claim value</td><td>Your <code>client_id</code></td><td>The API's resource identifier</td></tr>
+</table>
+<div class="info-box danger">
+  <div class="info-box-label">Never Send ID Tokens to APIs</div>
+  <p>The ID Token's <code>aud</code> is your <code>client_id</code>. If you send it to an API, the API should reject it — it is not in the audience. Use access tokens for API calls. ID tokens are only for your application to establish the user's identity.</p>
+</div>
+<h3>All ID Token Claims</h3>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">ID Token Payload — Fully Annotated</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="op">{</span>
+  <span class="cmt">// REQUIRED</span>
+  <span class="key">"iss"</span><span class="op">:</span>  <span class="str">"https://accounts.google.com"</span><span class="op">,</span>
+         <span class="cmt">↑ Must be HTTPS. Client must verify this exactly.</span>
+
+  <span class="key">"sub"</span><span class="op">:</span>  <span class="str">"1184099931589608910"</span><span class="op">,</span>
+         <span class="cmt">↑ STABLE user ID. Never changes. Never reassigned. Case-sensitive.</span>
+         <span class="cmt">  THIS is the true user identity. NOT their email address.</span>
+
+  <span class="key">"aud"</span><span class="op">:</span>  <span class="str">"407408718192.apps.googleusercontent.com"</span><span class="op">,</span>
+         <span class="cmt">↑ Your client_id. If array, your client_id MUST be in it.</span>
+
+  <span class="key">"exp"</span><span class="op">:</span>  <span class="num">1716239022</span><span class="op">,</span>    <span class="cmt">← Unix epoch. Client must verify not expired.</span>
+  <span class="key">"iat"</span><span class="op">:</span>  <span class="num">1716235422</span><span class="op">,</span>    <span class="cmt">← Issued at time.</span>
+
+  <span class="cmt">// REQUIRED when nonce was sent in auth request</span>
+  <span class="key">"nonce"</span><span class="op">:</span> <span class="str">"n-0S6_WzA2Mj"</span><span class="op">,</span>
+           <span class="cmt">↑ MUST match the nonce from the authorization request. Prevents replay.</span>
+
+  <span class="cmt">// FROM scope: profile</span>
+  <span class="key">"name"</span><span class="op">:</span>       <span class="str">"Jane Doe"</span><span class="op">,</span>
+  <span class="key">"given_name"</span><span class="op">:</span> <span class="str">"Jane"</span><span class="op">,</span>
+  <span class="key">"picture"</span><span class="op">:</span>    <span class="str">"https://..."</span><span class="op">,</span>
+  <span class="key">"locale"</span><span class="op">:</span>     <span class="str">"en-US"</span><span class="op">,</span>
+  <span class="key">"updated_at"</span><span class="op">:</span> <span class="num">1716235000</span><span class="op">,</span>
+
+  <span class="cmt">// FROM scope: email</span>
+  <span class="key">"email"</span><span class="op">:</span>          <span class="str">"jane@gmail.com"</span><span class="op">,</span>
+  <span class="key">"email_verified"</span><span class="op">:</span> <span class="kw">true</span>   <span class="cmt">← Did the provider verify this email?</span>
+<span class="op">}</span></pre>
+</div>
+<h3>The sub Claim — The True Identity</h3>
+<p>The <code>sub</code> claim is the user's permanent, unique identifier within the issuer. <strong>Never use email as a primary key</strong> — emails change, get transferred, and aren't unique across providers. The combination of <code>iss + sub</code> is globally unique and stable.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Correct User Identification Pattern</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// WRONG — email can change or be reassigned</span>
+user_primary_key = id_token.email
+
+<span class="cmt">// CORRECT — stable per issuer</span>
+user_primary_key = id_token.iss + <span class="str">"#"</span> + id_token.sub
+<span class="cmt">// → "https://accounts.google.com#118409993158960891077"</span></pre>
+</div>
+</section>
+
+<!-- OIDC FLOWS -->
+<section class="section" id="sec-oidcflows">
+<div class="section-eyebrow">Section 16 · OIDC</div>
+<h2>OIDC Flows &amp; response_type</h2>
+<p>OIDC inherits OAuth 2.0 grant types but calls them "flows" and adds the <code>response_type</code> parameter to control exactly what comes back from the authorization endpoint.</p>
+<table class="compare-table">
+<tr><th>Flow</th><th>response_type</th><th>From Auth Endpoint</th><th>From Token Endpoint</th><th>Use Case</th></tr>
+<tr><td><strong>Authorization Code</strong></td><td><code>code</code></td><td>Auth code only</td><td>ID Token + Access Token</td><td>Server apps, SPAs with PKCE</td></tr>
+<tr><td>~~Implicit~~</td><td><code>id_token token</code></td><td>ID Token + Access Token in fragment</td><td>N/A</td><td><span class="tag red">Deprecated</span></td></tr>
+<tr><td><strong>Hybrid</strong></td><td><code>code id_token</code></td><td>Code + ID Token</td><td>Access Token</td><td>Native apps needing early identity confirmation</td></tr>
+</table>
+<div class="info-box note">
+  <div class="info-box-label">Hybrid Flow</div>
+  <p>The Hybrid Flow returns an ID token immediately from the auth endpoint, letting the client verify the user's identity before completing the token exchange. Useful when the backend token exchange might fail but you need to know who the user is. The token endpoint ID token is always the authoritative one.</p>
+</div>
+</section>
+
+<!-- USERINFO -->
+<section class="section" id="sec-userinfo">
+<div class="section-eyebrow">Section 17 · OIDC</div>
+<h2>UserInfo Endpoint</h2>
+<p>A standardized, protected endpoint that returns claims about the authenticated user when called with a valid access token.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">UserInfo Request &amp; Response</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="hdr">GET</span> /userinfo
+<span class="hdr">Host:</span> <span class="url">accounts.google.com</span>
+<span class="hdr">Authorization:</span> <span class="val">Bearer eyJhbGciOiJSUzI1NiI...</span>
+
+<span class="cmt">// Response:</span>
+<span class="op">{</span>
+  <span class="key">"sub"</span><span class="op">:</span>              <span class="str">"248289761001"</span><span class="op">,</span>       <span class="cmt">← Always returned</span>
+  <span class="key">"name"</span><span class="op">:</span>             <span class="str">"Jane Doe"</span><span class="op">,</span>
+  <span class="key">"given_name"</span><span class="op">:</span>       <span class="str">"Jane"</span><span class="op">,</span>
+  <span class="key">"family_name"</span><span class="op">:</span>      <span class="str">"Doe"</span><span class="op">,</span>
+  <span class="key">"preferred_username"</span><span class="op">:</span> <span class="str">"j.doe"</span><span class="op">,</span>
+  <span class="key">"email"</span><span class="op">:</span>            <span class="str">"janedoe@example.com"</span><span class="op">,</span>
+  <span class="key">"email_verified"</span><span class="op">:</span>   <span class="kw">true</span><span class="op">,</span>
+  <span class="key">"phone_number"</span><span class="op">:</span>     <span class="str">"+1 (604) 555-1234"</span><span class="op">,</span>
+  <span class="key">"picture"</span><span class="op">:</span>          <span class="str">"https://example.com/me.jpg"</span><span class="op">,</span>
+  <span class="key">"locale"</span><span class="op">:</span>           <span class="str">"en-US"</span><span class="op">,</span>
+  <span class="key">"updated_at"</span><span class="op">:</span>       <span class="num">1311280970</span>
+<span class="op">}</span></pre>
+</div>
+<div class="info-box note">
+  <div class="info-box-label">ID Token vs UserInfo — When to Use Which</div>
+  <p>Use the ID Token for core identity (<code>sub</code>, <code>email</code>, <code>name</code>) at login time. Use UserInfo when you need additional claims that would bloat the ID token, or when you need fresh profile data later in the session.</p>
+</div>
+</section>
+
+<!-- DISCOVERY -->
+<section class="section" id="sec-discovery">
+<div class="section-eyebrow">Section 18 · OIDC</div>
+<h2>Discovery Document &amp; JWKS</h2>
+<h3>The Discovery Document</h3>
+<p>Every OIDC-compliant server must publish at: <code>{issuer}/.well-known/openid-configuration</code></p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">OpenID Configuration (abbreviated)</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="op">{</span>
+  <span class="key">"issuer"</span><span class="op">:</span>                        <span class="str">"https://accounts.google.com"</span><span class="op">,</span>
+  <span class="key">"authorization_endpoint"</span><span class="op">:</span>        <span class="str">"https://accounts.google.com/o/oauth2/v2/auth"</span><span class="op">,</span>
+  <span class="key">"token_endpoint"</span><span class="op">:</span>                <span class="str">"https://oauth2.googleapis.com/token"</span><span class="op">,</span>
+  <span class="key">"userinfo_endpoint"</span><span class="op">:</span>             <span class="str">"https://openidconnect.googleapis.com/v1/userinfo"</span><span class="op">,</span>
+  <span class="key">"jwks_uri"</span><span class="op">:</span>                      <span class="str">"https://www.googleapis.com/oauth2/v3/certs"</span><span class="op">,</span>
+  <span class="key">"revocation_endpoint"</span><span class="op">:</span>           <span class="str">"https://oauth2.googleapis.com/revoke"</span><span class="op">,</span>
+  <span class="key">"scopes_supported"</span><span class="op">:</span>              <span class="op">[</span><span class="str">"openid"</span><span class="op">,</span> <span class="str">"email"</span><span class="op">,</span> <span class="str">"profile"</span><span class="op">,</span> <span class="str">"..."</span><span class="op">]</span><span class="op">,</span>
+  <span class="key">"response_types_supported"</span><span class="op">:</span>      <span class="op">[</span><span class="str">"code"</span><span class="op">,</span> <span class="str">"token"</span><span class="op">,</span> <span class="str">"id_token"</span><span class="op">]</span><span class="op">,</span>
+  <span class="key">"grant_types_supported"</span><span class="op">:</span>         <span class="op">[</span><span class="str">"authorization_code"</span><span class="op">,</span> <span class="str">"refresh_token"</span><span class="op">]</span><span class="op">,</span>
+  <span class="key">"id_token_signing_alg_values_supported"</span><span class="op">:</span> <span class="op">[</span><span class="str">"RS256"</span><span class="op">]</span><span class="op">,</span>
+  <span class="key">"claims_supported"</span><span class="op">:</span>              <span class="op">[</span><span class="str">"sub"</span><span class="op">,</span> <span class="str">"iss"</span><span class="op">,</span> <span class="str">"email"</span><span class="op">,</span> <span class="str">"name"</span><span class="op">,</span> <span class="str">"..."</span><span class="op">]</span><span class="op">,</span>
+  <span class="key">"code_challenge_methods_supported"</span><span class="op">:</span> <span class="op">[</span><span class="str">"S256"</span><span class="op">]</span>
+<span class="op">}</span></pre>
+</div>
+<h3>JWKS — JSON Web Key Set</h3>
+<p>The JWKS endpoint publishes the authorization server's public keys. Clients use these to verify JWT signatures — no out-of-band key exchange needed.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">JWKS Response</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="op">{</span>
+  <span class="key">"keys"</span><span class="op">:</span> <span class="op">[</span>
+    <span class="op">{</span>
+      <span class="key">"kty"</span><span class="op">:</span> <span class="str">"RSA"</span><span class="op">,</span>           <span class="cmt">← Key type</span>
+      <span class="key">"use"</span><span class="op">:</span> <span class="str">"sig"</span><span class="op">,</span>           <span class="cmt">← Usage: signature (vs encryption)</span>
+      <span class="key">"alg"</span><span class="op">:</span> <span class="str">"RS256"</span><span class="op">,</span>         <span class="cmt">← Algorithm this key is used with</span>
+      <span class="key">"kid"</span><span class="op">:</span> <span class="str">"ky-2024-01"</span><span class="op">,</span>    <span class="cmt">← Key ID — must match JWT header kid</span>
+      <span class="key">"n"</span><span class="op">:</span>   <span class="str">"pjdss8ZaDfEe..."</span><span class="op">,</span> <span class="cmt">← RSA modulus (Base64URL)</span>
+      <span class="key">"e"</span><span class="op">:</span>   <span class="str">"AQAB"</span>             <span class="cmt">← RSA exponent (65537 in Base64URL)</span>
+    <span class="op">}</span><span class="op">,</span>
+    <span class="op">{</span>
+      <span class="cmt">// Second key — auth servers always publish multiple keys for rotation</span>
+      <span class="key">"kid"</span><span class="op">:</span> <span class="str">"ky-2024-02"</span><span class="op">, ...</span>
+    <span class="op">}</span>
+  <span class="op">]</span>
+<span class="op">}</span></pre>
+</div>
+<div class="info-box tip">
+  <div class="info-box-label">JWKS Caching Strategy</div>
+  <p>Cache the JWKS aggressively (1–24 hours). Only re-fetch when you encounter a <code>kid</code> you don't recognize. This handles key rotation gracefully while avoiding excessive network calls.</p>
+</div>
+</section>
+
+<!-- ATTACKS -->
+<section class="section" id="sec-attacks">
+<div class="section-eyebrow">Section 19 · Security</div>
+<h2>Common Attacks &amp; How to Prevent Them</h2>
+<table class="compare-table">
+<tr><th>Attack</th><th>How It Works</th><th>Prevention</th></tr>
+<tr><td><strong>CSRF on Auth Flow</strong></td><td>Attacker tricks user's browser into initiating an auth flow with attacker's account attached</td><td>Validate <code>state</code> parameter. Must match session-stored value exactly.</td></tr>
+<tr><td><strong>Auth Code Interception</strong></td><td>Malicious app on same device intercepts auth code via redirect URI scheme</td><td>PKCE (RFC 7636). Code is useless without the code_verifier.</td></tr>
+<tr><td><strong>Open Redirect</strong></td><td>Attacker manipulates redirect_uri to send code to their server</td><td>Pre-register exact redirect URIs. Validate exact string match.</td></tr>
+<tr><td><strong>Token in URL Leakage</strong></td><td>Access token in URL gets into browser history, server logs, Referer headers</td><td>Use Authorization Code flow. Never put tokens in URLs.</td></tr>
+<tr><td><strong>JWT alg:none</strong></td><td>Attacker sends unsigned JWT with forged claims</td><td>Always specify allowed algorithms. Never accept <code>none</code>.</td></tr>
+<tr><td><strong>JWT alg confusion</strong></td><td>Attacker changes alg to HS256 and signs with server's public key</td><td>Always specify the exact expected algorithm explicitly.</td></tr>
+<tr><td><strong>Token Replay</strong></td><td>Attacker replays a captured valid token or ID token</td><td>Short expiry. <code>nonce</code> for ID tokens. <code>jti</code> tracking for critical ops.</td></tr>
+<tr><td><strong>Mix-Up Attack</strong></td><td>Attacker's server impersonates auth server in multi-IdP setups</td><td>Validate <code>iss</code> in every token. Use <code>iss</code> parameter in auth requests (RFC 9207).</td></tr>
+<tr><td><strong>Token Substitution</strong></td><td>Access token for API A used at API B</td><td>Validate <code>aud</code> claim. Each API only accepts tokens with its own audience.</td></tr>
+<tr><td><strong>Refresh Token Theft</strong></td><td>Attacker steals stored refresh token from client storage</td><td>Rotation + family invalidation. Sender-binding (DPoP, mTLS). Secure storage.</td></tr>
+<tr><td><strong>Clickjacking</strong></td><td>Auth server consent page embedded in attacker's iframe</td><td>Auth server must set <code>X-Frame-Options: DENY</code> and <code>frame-ancestors 'none'</code>.</td></tr>
+<tr><td><strong>XSS Token Theft</strong></td><td>Injected script reads tokens from localStorage or cookies</td><td>HttpOnly cookies. Memory-only token storage. Content Security Policy headers.</td></tr>
+</table>
+</section>
+
+<!-- BEST PRACTICES -->
+<section class="section" id="sec-bestpractices">
+<div class="section-eyebrow">Section 20 · Security</div>
+<h2>Security Best Practices (RFC 9700)</h2>
+<p>RFC 9700 (OAuth 2.0 Security Best Current Practice) consolidates years of hard-learned lessons.</p>
+<div class="card-grid">
+  <div class="card" style="border-color:var(--green)"><div class="card-icon">✅</div><h4>Always Use PKCE</h4><p>For all clients — both confidential and public. Even with a client secret, PKCE provides defense in depth against code interception.</p></div>
+  <div class="card" style="border-color:var(--green)"><div class="card-icon">✅</div><h4>Validate state Parameter</h4><p>Always generate a cryptographically random state, store in session, and verify it's returned unchanged.</p></div>
+  <div class="card" style="border-color:var(--green)"><div class="card-icon">✅</div><h4>Exact Redirect URI Matching</h4><p>Register exact URIs. Authorization servers must perform exact string matching — never prefix or wildcard.</p></div>
+  <div class="card" style="border-color:var(--green)"><div class="card-icon">✅</div><h4>Short-Lived Access Tokens</h4><p>15–60 minutes maximum. Shorter is better. Use refresh tokens for long sessions.</p></div>
+  <div class="card" style="border-color:var(--green)"><div class="card-icon">✅</div><h4>Rotate Refresh Tokens</h4><p>Issue a new one on each use, invalidate the old. Detect double-use (theft indicator). Invalidate the entire token family on detection.</p></div>
+  <div class="card" style="border-color:var(--green)"><div class="card-icon">✅</div><h4>TLS Everywhere</h4><p>All OAuth endpoints must use HTTPS/TLS. No HTTP for any OAuth endpoint under any circumstances.</p></div>
+  <div class="card" style="border-color:var(--red)"><div class="card-icon">🚫</div><h4>Never Use Implicit Grant</h4><p>Completely deprecated. Token in URL = token in browser history = token in logs. Use Auth Code + PKCE.</p></div>
+  <div class="card" style="border-color:var(--red)"><div class="card-icon">🚫</div><h4>Never Use ROPC Grant</h4><p>The client handles the user's password directly. This is the password anti-pattern with extra steps.</p></div>
+</div>
+<h3>The BFF Pattern — Recommended for SPAs</h3>
+<p>Backend-for-Frontend (BFF): the SPA's backend handles OAuth, stores tokens server-side, and gives the browser only a session cookie (HttpOnly, Secure, SameSite=Strict).</p>
+<div class="flow">
+  <div class="flow-title">BFF Pattern — Tokens Never Touch Browser JavaScript</div>
+  <div class="flow-vertical">
+    <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-body"><div class="flow-step-title">SPA redirects to BFF backend for login</div><div class="flow-step-desc">The BFF server (not browser JS) initiates the OAuth flow.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-body"><div class="flow-step-title">BFF handles the complete OAuth flow server-side</div><div class="flow-step-desc">Tokens are stored in the BFF's server-side session. They never reach the browser.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-body"><div class="flow-step-title">BFF sets a secure HttpOnly session cookie</div><div class="flow-step-desc">HttpOnly (JS cannot read), Secure (HTTPS only), SameSite=Strict (no CSRF).</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-body"><div class="flow-step-title">SPA calls BFF APIs; BFF forwards with token</div><div class="flow-step-desc">XSS in the SPA cannot steal tokens — there are none in the browser.</div></div></div>
+  </div>
+</div>
+</section>
+
+<!-- TOKEN STORAGE -->
+<section class="section" id="sec-storage">
+<div class="section-eyebrow">Section 21 · Security</div>
+<h2>Token Storage — The Right Approach</h2>
+<table class="compare-table">
+<tr><th>Storage</th><th>XSS Risk</th><th>CSRF Risk</th><th>Verdict</th></tr>
+<tr><td><code>localStorage</code></td><td><span class="tag red">High — any JS can read</span></td><td><span class="tag green">None</span></td><td><span class="tag red">Avoid for tokens</span></td></tr>
+<tr><td><code>sessionStorage</code></td><td><span class="tag red">High — any JS can read</span></td><td><span class="tag green">None</span></td><td><span class="tag yellow">Only temporary use</span></td></tr>
+<tr><td>JS Memory (variable)</td><td><span class="tag yellow">Medium — lost on tab close</span></td><td><span class="tag green">None</span></td><td><span class="tag green">OK for access tokens</span></td></tr>
+<tr><td>HttpOnly Cookie</td><td><span class="tag green">None — JS cannot read</span></td><td><span class="tag yellow">Use SameSite=Strict</span></td><td><span class="tag green">Best for sessions</span></td></tr>
+<tr><td>Service Worker</td><td><span class="tag green">Isolated from page JS</span></td><td><span class="tag green">None</span></td><td><span class="tag green">Advanced option</span></td></tr>
+</table>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Recommended Strategy by Platform</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// Server-side app (Node.js, Django, Rails, etc.)</span>
+access_token  → Server memory / encrypted session
+refresh_token → Encrypted database, tied to session ID
+
+<span class="cmt">// SPA — BFF Pattern (strongly recommended)</span>
+access_token  → BFF server memory
+refresh_token → BFF encrypted session
+browser gets  → Only a secure HttpOnly session cookie
+
+<span class="cmt">// SPA — No BFF (last resort)</span>
+access_token  → In-memory JS variable only (lost on reload, use silent refresh)
+refresh_token → Avoid if possible; memory with short expiry if needed
+
+<span class="cmt">// Mobile app (iOS / Android)</span>
+access_token  → Memory
+refresh_token → iOS Keychain / Android Keystore (hardware-backed encryption)
+
+<span class="cmt">// CLI / Desktop</span>
+access_token  → Memory
+refresh_token → OS Credential Manager / Keychain</pre>
+</div>
+</section>
+
+<!-- SCOPES -->
+<section class="section" id="sec-scopes">
+<div class="section-eyebrow">Section 22 · Advanced</div>
+<h2>Scopes &amp; Claims — Fine-Grained Authorization</h2>
+<h3>Scopes</h3>
+<p>Scopes define what access is being requested. Space-separated strings in the auth request. The user sees them on the consent screen. The granted scopes determine what claims appear in tokens.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Scope Patterns</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// OIDC Standard Scopes</span>
+<span class="val">openid</span>          <span class="cmt">← Required for OIDC. Returns sub at minimum.</span>
+<span class="val">profile</span>         <span class="cmt">← name, picture, website, locale, updated_at</span>
+<span class="val">email</span>           <span class="cmt">← email, email_verified</span>
+<span class="val">address</span>         <span class="cmt">← structured address claim</span>
+<span class="val">phone</span>           <span class="cmt">← phone_number, phone_number_verified</span>
+<span class="val">offline_access</span>  <span class="cmt">← Requests a refresh token be issued</span>
+
+<span class="cmt">// Common API Scope Patterns</span>
+<span class="val">read:contacts</span>   <span class="cmt">← resource:action pattern (most common)</span>
+<span class="val">write:contacts</span>
+<span class="val">admin</span>           <span class="cmt">← Role-based scope</span>
+<span class="val">https://api.example.com/orders.read</span>  <span class="cmt">← URL-based (avoids name collisions)</span></pre>
+</div>
+<h3>Scopes vs Claims</h3>
+<table class="compare-table">
+<tr><th>Scope Requested</th><th>Claims Returned</th></tr>
+<tr><td><code>openid</code></td><td><code>sub</code></td></tr>
+<tr><td><code>profile</code></td><td><code>name</code>, <code>family_name</code>, <code>given_name</code>, <code>middle_name</code>, <code>nickname</code>, <code>preferred_username</code>, <code>profile</code>, <code>picture</code>, <code>website</code>, <code>gender</code>, <code>birthdate</code>, <code>zoneinfo</code>, <code>locale</code>, <code>updated_at</code></td></tr>
+<tr><td><code>email</code></td><td><code>email</code>, <code>email_verified</code></td></tr>
+<tr><td><code>phone</code></td><td><code>phone_number</code>, <code>phone_number_verified</code></td></tr>
+<tr><td><code>address</code></td><td><code>address</code> (object: <code>street_address</code>, <code>locality</code>, <code>region</code>, <code>postal_code</code>, <code>country</code>)</td></tr>
+</table>
+</section>
+
+<!-- PRIVATE KEY JWT -->
+<section class="section" id="sec-pkijwt">
+<div class="section-eyebrow">Section 23 · Advanced</div>
+<h2>Private Key JWT Client Authentication</h2>
+<p>Instead of a shared client secret, clients authenticate to the token endpoint by signing a JWT assertion with their own private key. No shared secret ever gets transmitted.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">Private Key JWT — How It Works</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// Client signs this JWT with ITS OWN private key:</span>
+<span class="op">{</span>
+  <span class="key">"iss"</span><span class="op">:</span> <span class="str">"my-client-id"</span><span class="op">,</span>
+  <span class="key">"sub"</span><span class="op">:</span> <span class="str">"my-client-id"</span><span class="op">,</span>
+  <span class="key">"aud"</span><span class="op">:</span> <span class="str">"https://as.example.com/token"</span><span class="op">,</span>  <span class="cmt">← token endpoint as audience</span>
+  <span class="key">"jti"</span><span class="op">:</span> <span class="str">"unique-id"</span><span class="op">,</span>                    <span class="cmt">← prevents replay</span>
+  <span class="key">"exp"</span><span class="op">:</span> <span class="num">1716239022</span>                      <span class="cmt">← max 5 minutes</span>
+<span class="op">}</span>
+
+<span class="cmt">// Token endpoint request:</span>
+<span class="hdr">POST</span> /token
+<span class="key">client_assertion_type</span><span class="op">=</span><span class="val">urn:ietf:params:oauth:client-assertion-type:jwt-bearer</span>
+<span class="op">&amp;</span><span class="key">client_assertion</span><span class="op">=</span><span class="val">eyJhbGciOiJSUzI1NiIsImtpZCI6Ii4uLiJ9...</span>
+<span class="op">&amp;</span><span class="key">grant_type</span><span class="op">=</span><span class="val">client_credentials</span>
+<span class="op">&amp;</span><span class="key">scope</span><span class="op">=</span><span class="val">read:data</span></pre>
+</div>
+<div class="info-box success">
+  <div class="info-box-label">Why This Is Stronger Than Client Secrets</div>
+  <p>The private key never leaves the client. The auth server stores only the public key. Compromise of the auth server doesn't expose the client's credentials. Widely used in Google APIs, financial-grade FAPI, and high-security enterprise deployments.</p>
+</div>
+</section>
+
+<!-- DPOP & MTLS -->
+<section class="section" id="sec-dpop">
+<div class="section-eyebrow">Section 24 · Advanced</div>
+<h2>Sender-Constrained Tokens: DPoP &amp; mTLS</h2>
+<p>Standard Bearer tokens are like physical keys — whoever finds them can use them. Sender-constrained tokens cryptographically bind the token to the specific client, making a stolen token useless.</p>
+<h3>The Bearer Token Problem</h3>
+<div class="info-box warn">
+  <div class="info-box-label">Bearer Token Risk</div>
+  <p>Any entity possessing a bearer token can use it. If stolen via XSS, network interception, log exposure, or storage breach, the attacker can use it freely until expiry.</p>
+</div>
+<h3>DPoP — Demonstration of Proof-of-Possession (RFC 9449)</h3>
+<p>The client generates a key pair and creates a signed "DPoP proof" JWT on each request. The token is bound to the corresponding public key.</p>
+<div class="code-block">
+  <div class="code-header"><span class="code-lang">DPoP Request</span><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div></div>
+  <pre><span class="cmt">// DPoP Proof JWT header embeds the client's public key:</span>
+<span class="op">{</span> <span class="key">"typ"</span><span class="op">:</span> <span class="str">"dpop+jwt"</span><span class="op">,</span> <span class="key">"alg"</span><span class="op">:</span> <span class="str">"ES256"</span><span class="op">,</span> <span class="key">"jwk"</span><span class="op">:</span> <span class="op">{</span> <span class="cmt">/* client public key inline */</span> <span class="op">}</span> <span class="op">}</span>
+
+<span class="cmt">// DPoP Proof JWT payload is bound to this exact request:</span>
+<span class="op">{</span>
+  <span class="key">"jti"</span><span class="op">:</span> <span class="str">"unique-proof-id"</span><span class="op">,</span>
+  <span class="key">"htm"</span><span class="op">:</span> <span class="str">"GET"</span><span class="op">,</span>                                    <span class="cmt">← HTTP method</span>
+  <span class="key">"htu"</span><span class="op">:</span> <span class="str">"https://api.example.com/resource"</span><span class="op">,</span>       <span class="cmt">← Request URL</span>
+  <span class="key">"iat"</span><span class="op">:</span> <span class="num">1716235422</span><span class="op">,</span>                             <span class="cmt">← Must be very recent</span>
+  <span class="key">"ath"</span><span class="op">:</span> <span class="str">"BASE64URL(SHA256(access_token))"</span>        <span class="cmt">← Binds proof to token</span>
+<span class="op">}</span>
+
+<span class="cmt">// HTTP request uses both headers:</span>
+<span class="hdr">Authorization:</span> <span class="val">DPoP eyJhbGciOiJFUzI1NiJ9...</span>    <span class="cmt">← Token type is DPoP, not Bearer</span>
+<span class="hdr">DPoP:</span>          <span class="val">eyJhbGciOiJFUzI1NiIsImp3a...</span>    <span class="cmt">← The proof JWT</span></pre>
+</div>
+<h3>mTLS Client Certificate Binding (RFC 8705)</h3>
+<p>The client presents a TLS client certificate at the token endpoint. The auth server embeds the certificate thumbprint in the token. The resource server verifies the TLS certificate matches the embedded thumbprint on every request.</p>
+<table class="compare-table">
+<tr><th></th><th>Bearer</th><th>DPoP</th><th>mTLS-Bound</th></tr>
+<tr><td>Stolen token usable?</td><td><span class="tag red">Yes</span></td><td><span class="tag yellow">No — needs private key</span></td><td><span class="tag green">No — needs certificate</span></td></tr>
+<tr><td>Complexity</td><td>Low</td><td>Medium</td><td>High (needs PKI)</td></tr>
+<tr><td>Best for</td><td>Most apps</td><td>High-security web/mobile</td><td>Financial APIs, FAPI</td></tr>
+</table>
+</section>
+
+<!-- SUMMARY / CHEAT SHEET -->
+<section class="section" id="sec-summary">
+<div class="section-eyebrow">Section 25 · Reference</div>
+<h2>Summary &amp; Complete Cheat Sheet</h2>
+<h3>OAuth 2.0 vs OIDC</h3>
+<table class="compare-table">
+<tr><th></th><th>OAuth 2.0</th><th>OpenID Connect</th></tr>
+<tr><td>Purpose</td><td>Authorization (can this app do X?)</td><td>Authentication (who is this user?)</td></tr>
+<tr><td>Spec</td><td>RFC 6749, 6750</td><td>OIDC Core 1.0 (built on OAuth 2.0)</td></tr>
+<tr><td>Tokens returned</td><td>Access token (+ optional refresh)</td><td>Access token + ID token + optional refresh</td></tr>
+<tr><td>Token format</td><td>Access token: opaque or JWT</td><td>ID Token: always JWT</td></tr>
+<tr><td>User info</td><td>Not standardized</td><td>Standard <code>/userinfo</code> endpoint</td></tr>
+<tr><td>Discovery</td><td>Not standardized</td><td><code>/.well-known/openid-configuration</code></td></tr>
+<tr><td>Key distribution</td><td>Not standardized</td><td>JWKS endpoint</td></tr>
+</table>
+<h3>Which Grant Type Should I Use?</h3>
+<table class="compare-table">
+<tr><th>Your Situation</th><th>Use This Grant Type</th></tr>
+<tr><td>Server-side web app, user present</td><td>Authorization Code + PKCE + client_secret</td></tr>
+<tr><td>SPA (no backend), user present</td><td>Authorization Code + PKCE (no secret)</td></tr>
+<tr><td>SPA with BFF backend</td><td>Authorization Code + PKCE on the BFF server</td></tr>
+<tr><td>Native / mobile app, user present</td><td>Authorization Code + PKCE (no secret)</td></tr>
+<tr><td>Service-to-service, no user</td><td>Client Credentials</td></tr>
+<tr><td>Service-to-service, high security</td><td>Client Credentials + Private Key JWT auth</td></tr>
+<tr><td>TV / IoT / CLI, no browser</td><td>Device Authorization Grant</td></tr>
+<tr><td>Getting new tokens silently</td><td>Refresh Token grant</td></tr>
+</table>
+<h3>JWT Validation — Quick Reference</h3>
+<div class="badge-row">
+  <span class="badge green">✓ Structure: 3 parts</span>
+  <span class="badge green">✓ alg is allowlisted</span>
+  <span class="badge green">✓ Signature valid</span>
+  <span class="badge green">✓ exp not passed</span>
+  <span class="badge green">✓ iss matches</span>
+  <span class="badge green">✓ aud contains my ID</span>
+  <span class="badge green">✓ nbf has passed</span>
+  <span class="badge green">✓ nonce matches (OIDC)</span>
+</div>
+<h3>Token Types — Quick Reference</h3>
+<table class="compare-table">
+<tr><th>Token</th><th>Read By</th><th>Used For</th><th>Format</th><th>Lifetime</th></tr>
+<tr><td>Access Token</td><td>Resource Server</td><td>Calling APIs</td><td>JWT or opaque</td><td>5–60 min</td></tr>
+<tr><td>Refresh Token</td><td>Auth Server only</td><td>Getting new access tokens</td><td>Opaque</td><td>Days–months</td></tr>
+<tr><td>ID Token</td><td>Client App</td><td>Establishing user's identity</td><td>Always JWT</td><td>Session-length</td></tr>
+</table>
+<h3>Essential RFCs</h3>
+<table class="compare-table">
+<tr><th>RFC</th><th>What It Defines</th></tr>
+<tr><td>RFC 6749</td><td>OAuth 2.0 Framework — core grant types, roles, endpoints</td></tr>
+<tr><td>RFC 6750</td><td>Bearer Token Usage in HTTP</td></tr>
+<tr><td>RFC 7519</td><td>JSON Web Token (JWT) — structure and claims</td></tr>
+<tr><td>RFC 7517</td><td>JSON Web Key (JWK) — public key format</td></tr>
+<tr><td>RFC 7518</td><td>JSON Web Algorithms (JWA) — RS256, ES256, HS256...</td></tr>
+<tr><td>RFC 7636</td><td>PKCE — auth code protection for public clients</td></tr>
+<tr><td>RFC 7662</td><td>Token Introspection</td></tr>
+<tr><td>RFC 8628</td><td>Device Authorization Grant</td></tr>
+<tr><td>RFC 8705</td><td>mTLS Client Certificate Bound Access Tokens</td></tr>
+<tr><td>RFC 9449</td><td>DPoP — Demonstration of Proof-of-Possession</td></tr>
+<tr><td>RFC 9700</td><td>OAuth 2.0 Security Best Current Practice</td></tr>
+</table>
+<div class="info-box tip">
+  <div class="info-box-label">Recommended Next Steps</div>
+  <p><strong>1.</strong> Implement Auth Code + PKCE from scratch in your language — don't use a library for your first attempt. <strong>2.</strong> Decode real JWTs at jwt.io. <strong>3.</strong> Read a real discovery document: <code>accounts.google.com/.well-known/openid-configuration</code>. <strong>4.</strong> Read RFC 9700 (OAuth Security BCP) in full. <strong>5.</strong> Explore FAPI 2.0 for financial-grade patterns. <strong>6.</strong> Try implementing a minimal authorization server — nothing teaches OAuth better than building one.</p>
+</div>
+</section>
+</main>
+<script>
+const secMap = {
+  history:'sec-history',before:'sec-before',core:'sec-core',roles:'sec-roles',
+  grants:'sec-grants',authcode:'sec-authcode',pkce:'sec-pkce',clientcreds:'sec-clientcreds',
+  device:'sec-device',tokens:'sec-tokens',jwt:'sec-jwt',jwtsec:'sec-jwtsec',
+  refresh:'sec-refresh',oidc:'sec-oidc',idtoken:'sec-idtoken',oidcflows:'sec-oidcflows',
+  userinfo:'sec-userinfo',discovery:'sec-discovery',attacks:'sec-attacks',
+  bestpractices:'sec-bestpractices',storage:'sec-storage',scopes:'sec-scopes',
+  pkijwt:'sec-pkijwt',dpop:'sec-dpop',summary:'sec-summary'
+};
+let current = 'history';
+function show(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const el = document.getElementById(secMap[id]);
+  if(el){ el.classList.add('active'); window.scrollTo({top:el.offsetTop-20,behavior:'smooth'}); }
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.getAttribute('onclick')===`show('${id}')`) n.classList.add('active');
+  });
+  current=id; updateProgress();
+  if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('open');
+}
+function updateProgress(){
+  const keys=Object.keys(secMap);
+  const pct=((keys.indexOf(current)+1)/keys.length)*100;
+  document.getElementById('progress').style.width=pct+'%';
+}
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
+document.addEventListener('keydown',e=>{
+  const keys=Object.keys(secMap), idx=keys.indexOf(current);
+  if(e.key==='ArrowRight'&&idx<keys.length-1) show(keys[idx+1]);
+  if(e.key==='ArrowLeft'&&idx>0) show(keys[idx-1]);
+});
+updateProgress();
+</script>
+</body>
+</html>
